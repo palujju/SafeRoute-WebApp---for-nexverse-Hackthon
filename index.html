@@ -1,0 +1,1419 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="utf-8" />
+    <title>SafeRoute — Safety-First Navigation</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap"
+        rel="stylesheet">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        html,
+        body,
+        #map {
+            height: 100%;
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+        }
+
+        /* Splash Screen */
+        #splash {
+            position: fixed;
+            inset: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-direction: column;
+            background: linear-gradient(135deg, #1E88E5, #673AB7);
+            color: #fff;
+            z-index: 9999;
+            transition: opacity 0.5s ease;
+        }
+
+        .splash-logo {
+            width: 96px;
+            height: 96px;
+            border-radius: 18px;
+            background: rgba(255, 255, 255, 0.12);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 700;
+            font-size: 28px;
+            box-shadow: 0 8px 30px rgba(0, 0, 0, 0.15);
+            margin-bottom: 20px;
+        }
+
+        .splash h1 {
+            font-size: 2.5rem;
+            font-weight: 800;
+            margin-bottom: 8px;
+        }
+
+        .splash p {
+            font-size: 1.1rem;
+            opacity: 0.9;
+            margin-bottom: 20px;
+        }
+
+        .loading {
+            opacity: 0.9;
+            font-size: 13px;
+            margin-top: 6px;
+        }
+
+        /* Top Navigation Bar */
+        .topbar {
+            position: fixed;
+            top: 12px;
+            left: 12px;
+            right: 12px;
+            display: flex;
+            gap: 12px;
+            align-items: center;
+            padding: 12px 16px;
+            background: rgba(255, 255, 255, 0.98);
+            border-radius: 16px;
+            z-index: 900;
+            backdrop-filter: blur(10px);
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+
+        .brand {
+            font-weight: 800;
+            color: #0D47A1;
+            font-size: 20px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .brand::before {
+            content: "🛡️";
+            font-size: 18px;
+        }
+
+        .control-group {
+            display: flex;
+            gap: 8px;
+            align-items: center;
+        }
+
+        .control-group.flex-1 {
+            flex: 1;
+        }
+
+        input,
+        select {
+            padding: 10px 12px;
+            border-radius: 10px;
+            border: 1px solid #e6eef9;
+            font-size: 14px;
+            transition: all 0.2s ease;
+            background: #fff;
+        }
+
+        input:focus,
+        select:focus {
+            outline: none;
+            border-color: #1E88E5;
+            box-shadow: 0 0 0 3px rgba(30, 136, 229, 0.1);
+        }
+
+        .btn {
+            padding: 10px 16px;
+            border-radius: 10px;
+            border: none;
+            cursor: pointer;
+            font-weight: 600;
+            font-size: 14px;
+            transition: all 0.2s ease;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .btn:hover {
+            transform: translateY(-1px);
+        }
+
+        .btn-ghost {
+            background: transparent;
+            border: 1px solid #d1d5db;
+            color: #374151;
+        }
+
+        .btn-ghost:hover {
+            background: #f9fafb;
+            border-color: #9ca3af;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, #1E88E5, #1565C0);
+            color: white;
+            box-shadow: 0 4px 12px rgba(30, 136, 229, 0.3);
+        }
+
+        .btn-primary:hover {
+            box-shadow: 0 6px 16px rgba(30, 136, 229, 0.4);
+        }
+
+        /* Mode Recommendation Card */
+        #modeCard {
+            position: fixed;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 480px;
+            max-width: calc(100vw - 40px);
+            background: #fff;
+            padding: 20px;
+            border-radius: 16px;
+            box-shadow: 0 12px 40px rgba(16, 24, 40, 0.15);
+            z-index: 1500;
+            text-align: center;
+            display: none;
+            border: 1px solid rgba(0, 0, 0, 0.05);
+        }
+
+        /* Risk Zone Popup Card */
+        .risk-popup {
+            background: #fff;
+            border-radius: 12px;
+            padding: 16px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.15);
+            border: 1px solid rgba(0, 0, 0, 0.1);
+            min-width: 200px;
+            text-align: center;
+        }
+
+        .risk-popup h4 {
+            margin: 0 0 8px 0;
+            font-size: 16px;
+            font-weight: 600;
+        }
+
+        .risk-popup .risk-stats {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+            margin: 8px 0;
+        }
+
+        .risk-popup .risk-stat {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 14px;
+        }
+
+        .risk-popup .risk-stat .label {
+            color: #666;
+        }
+
+        .risk-popup .risk-stat .value {
+            font-weight: 600;
+        }
+
+        .risk-popup .close-btn {
+            position: absolute;
+            top: 8px;
+            right: 8px;
+            background: none;
+            border: none;
+            font-size: 18px;
+            cursor: pointer;
+            color: #999;
+            width: 24px;
+            height: 24px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 50%;
+            transition: all 0.2s ease;
+        }
+
+        .risk-popup .close-btn:hover {
+            background: #f5f5f5;
+            color: #333;
+        }
+
+        .modeBtn {
+            display: inline-block;
+            margin: 6px;
+            padding: 12px 16px;
+            border-radius: 12px;
+            background: #f8fafc;
+            cursor: pointer;
+            border: 1px solid #e2e8f0;
+            font-weight: 500;
+            transition: all 0.2s ease;
+            font-size: 14px;
+        }
+
+        .modeBtn:hover {
+            background: #e2e8f0;
+            transform: translateY(-1px);
+        }
+
+        .recommended {
+            background: linear-gradient(135deg, #43a047, #2e7d32);
+            color: #fff;
+            animation: pulse 1.4s infinite;
+            border: 2px solid #2e7d32;
+            box-shadow: 0 4px 12px rgba(67, 160, 71, 0.4);
+            transform: scale(1.05);
+            font-weight: 700;
+        }
+
+        @keyframes pulse {
+            0% {
+                transform: scale(1.05);
+            }
+
+            50% {
+                transform: scale(1.08);
+            }
+
+            100% {
+                transform: scale(1.05);
+            }
+        }
+
+        /* Floating Action Buttons */
+        .fab {
+            width: 56px;
+            height: 56px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: #FF7043;
+            color: #fff;
+            cursor: pointer;
+            position: fixed;
+            right: 20px;
+            bottom: 20px;
+            box-shadow: 0 6px 20px rgba(255, 112, 67, 0.3);
+            font-size: 20px;
+            z-index: 1200;
+            transition: all 0.2s ease;
+        }
+
+        .fab:hover {
+            transform: scale(1.05);
+            box-shadow: 0 8px 24px rgba(255, 112, 67, 0.4);
+        }
+
+        #rightFabGroup {
+            position: fixed;
+            right: 20px;
+            bottom: 90px;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            z-index: 1200;
+        }
+
+        .fab-small {
+            width: 48px;
+            height: 48px;
+            font-size: 18px;
+            background: #6c757d;
+        }
+
+        .fab-small:hover {
+            background: #5a6268;
+        }
+
+        /* Toast Notifications */
+        #toast {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            padding: 12px 16px;
+            border-radius: 12px;
+            background: #1E88E5;
+            color: #fff;
+            z-index: 3000;
+            display: none;
+            font-weight: 500;
+            box-shadow: 0 4px 12px rgba(30, 136, 229, 0.3);
+        }
+
+        /* Legend */
+        .legend {
+            position: fixed;
+            left: 20px;
+            bottom: 20px;
+            background: #fff;
+            padding: 12px;
+            border-radius: 12px;
+            box-shadow: 0 8px 30px rgba(0, 0, 0, 0.1);
+            z-index: 900;
+            border: 1px solid rgba(0, 0, 0, 0.05);
+        }
+
+        .legend div {
+            font-size: 13px;
+            margin: 6px 0;
+            display: flex;
+            align-items: center;
+        }
+
+        .risk-dot {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            display: inline-block;
+            margin-right: 8px;
+        }
+
+        /* Incident Selection */
+        #incidentSelect {
+            display: none;
+            position: fixed;
+            bottom: 90px;
+            right: 80px;
+            background: #fff;
+            border-radius: 12px;
+            box-shadow: 0 8px 30px rgba(0, 0, 0, 0.15);
+            padding: 12px;
+            z-index: 2000;
+            border: 1px solid rgba(0, 0, 0, 0.05);
+        }
+
+        #incidentSelect button {
+            margin: 4px;
+            padding: 8px 12px;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            background: #f8fafc;
+            transition: all 0.2s ease;
+            font-size: 13px;
+        }
+
+        #incidentSelect button:hover {
+            background: #e2e8f0;
+        }
+
+        /* Responsive Design */
+        @media (max-width: 768px) {
+            .topbar {
+                flex-direction: column;
+                gap: 8px;
+                padding: 10px;
+            }
+
+            .control-group {
+                width: 100%;
+                justify-content: center;
+            }
+
+            .control-group input {
+                flex: 1;
+                min-width: 0;
+            }
+
+            #modeCard {
+                width: calc(100vw - 20px);
+                left: 10px;
+                right: 10px;
+                transform: none;
+            }
+
+            .legend {
+                left: 10px;
+                bottom: 10px;
+                font-size: 12px;
+            }
+        }
+
+        /* Dark mode styles */
+        .dark-mode {
+            background-color: #1a1a1a;
+        }
+
+        .dark-mode .topbar {
+            background: rgba(30, 30, 30, 0.95);
+            border-color: rgba(255, 255, 255, 0.1);
+        }
+
+        .dark-mode .brand {
+            color: #64b5f6;
+        }
+
+        .dark-mode input,
+        .dark-mode select {
+            background: #2d2d2d;
+            border-color: #404040;
+            color: #fff;
+        }
+
+        .dark-mode .btn-ghost {
+            border-color: #404040;
+            color: #e0e0e0;
+        }
+
+        .dark-mode .btn-ghost:hover {
+            background: #404040;
+        }
+
+        .dark-mode #modeCard {
+            background: #2d2d2d;
+            border-color: rgba(255, 255, 255, 0.1);
+        }
+
+        .dark-mode .legend {
+            background: #2d2d2d;
+            border-color: rgba(255, 255, 255, 0.1);
+        }
+
+        .dark-mode #incidentSelect {
+            background: #2d2d2d;
+            border-color: rgba(255, 255, 255, 0.1);
+        }
+
+        .dark-mode #incidentSelect button {
+            background: #404040;
+            color: #e0e0e0;
+        }
+
+        .dark-mode #incidentSelect button:hover {
+            background: #505050;
+        }
+    </style>
+</head>
+
+<body>
+    <!-- Splash Screen -->
+    <div id="splash">
+        <div class="splash-logo">🛡️</div>
+        <h1>SafeRoute</h1>
+        <p>Safer Journeys, Smarter Choices</p>
+        <div class="loading">Loading...</div>
+    </div>
+
+    <!-- Top Navigation Bar -->
+    <div class="topbar">
+        <div class="brand">SafeRoute</div>
+
+        <div class="control-group flex-1">
+            <input id="fromInput" placeholder="From (address or place)" style="width: 280px" />
+            <input id="toInput" placeholder="To (address or place)" style="width: 280px" />
+        </div>
+
+        <div class="control-group">
+            <input id="orsKey" placeholder="ORS API key" style="width: 200px" />
+            <input id="owmKey" placeholder="OWM API key (optional)" style="width: 200px" />
+            <button id="goBtn" class="btn btn-primary">🚀 Go</button>
+        </div>
+
+        <div class="control-group">
+            <button id="toggleHeat" class="btn btn-ghost">🔥 Heatmap</button>
+            <button id="toggleNight" class="btn btn-ghost">🌙 Night</button>
+            <button id="clearAllBtn" class="btn btn-ghost">🗑️ Clear</button>
+        </div>
+    </div>
+
+    <!-- Map Container -->
+    <div id="map"></div>
+
+    <!-- Floating Action Buttons -->
+    <div id="rightFabGroup">
+        <div class="fab fab-small" id="reportFab" title="Report Incident">⚠️</div>
+        <div class="fab fab-small" id="clearRisksFab" title="Clear Risk Zones">🧹</div>
+    </div>
+
+    <!-- Incident Selection Panel -->
+    <div id="incidentSelect">
+        <div style="font-weight: 700; margin-bottom: 8px; padding: 4px; color: #374151;">Report Incident</div>
+        <button data-type="Accident">🚨 Accident</button>
+        <button data-type="Pothole">🕳️ Pothole</button>
+        <button data-type="Lighting">💡 Poor Lighting</button>
+        <button data-type="Crowd">👥 Crowd Surge</button>
+        <button data-type="Construction">🚧 Construction</button>
+        <button data-type="Crime">🚨 Crime Alert</button>
+    </div>
+
+    <!-- Mode Recommendation Card -->
+    <div id="modeCard">
+        <h3 id="modeTitle">Suggested Mode</h3>
+        <p id="modeReason" class="small"></p>
+        <div style="margin-top: 12px">
+            <button class="modeBtn" id="btnWalk">🚶 Walk</button>
+            <button class="modeBtn" id="btnCycle">🚲 Cycle</button>
+            <button class="modeBtn" id="btnMetro">🚇 Metro</button>
+            <button class="modeBtn" id="btnCab">🚕 Cab</button>
+        </div>
+    </div>
+
+    <!-- Toast Notification -->
+    <div id="toast"></div>
+
+    <!-- Risk Legend -->
+    <div class="legend" id="legend">
+        <div><span class="risk-dot" style="background: #4caf50"></span>Safe Zone</div>
+        <div><span class="risk-dot" style="background: #ffeb3b"></span>Moderate Risk</div>
+        <div><span class="risk-dot" style="background: #ff9800"></span>High Risk</div>
+        <div><span class="risk-dot" style="background: #f44336"></span>Danger Zone</div>
+        <div style="margin-top: 8px; font-size: 11px; color: #666;">Risk = Heat + Crowd + Weather + Incidents</div>
+    </div>
+
+    <!-- Scripts -->
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script src="https://unpkg.com/leaflet.heat/dist/leaflet-heat.js"></script>
+
+    <script>
+        /* ========== UTILITY FUNCTIONS ========== */
+        const $ = sel => document.querySelector(sel);
+        const showToast = (message, duration = 3000) => {
+            const toast = $('#toast');
+            toast.innerText = message;
+            toast.style.display = 'block';
+            setTimeout(() => {
+                toast.style.display = 'none';
+            }, duration);
+        };
+
+        // Remove splash screen after load
+        setTimeout(() => {
+            const splash = $('#splash');
+            splash.style.opacity = '0';
+            setTimeout(() => splash.remove(), 500);
+        }, 1500);
+
+        /* ========== MAP INITIALIZATION ========== */
+        const map = L.map('map').setView([28.63, 77.22], 13);
+
+        // Base layers
+        const osmLayer = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            attribution: '&copy; OpenStreetMap contributors',
+            maxZoom: 19
+        }).addTo(map);
+
+        const darkLayer = L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+            attribution: '&copy; OpenStreetMap contributors &copy; CARTO',
+            maxZoom: 19
+        });
+
+        /* ========== GLOBAL STATE ========== */
+        let isDarkMode = false;
+        let heatLayer = null;
+        let routeLayers = [];
+        let riskCircles = [];
+        let incidentMarkers = [];
+        let reportMode = false;
+        let selectedIncidentType = null;
+
+        // Mock data for demonstration
+        const heatPoints = [];
+        const crowdData = [];
+        const incidentData = [];
+
+        /* ========== MOCK DATA GENERATION ========== */
+        function generateMockData() {
+            // Generate heat points around Delhi area with more visible patterns
+            const centerLat = 28.63;
+            const centerLon = 77.22;
+
+            // Main hotspot (Paharganj/Delhi area) - large concentrated red zone
+            for (let i = 0; i < 150; i++) {
+                const lat = centerLat + (Math.random() - 0.5) * 0.015;
+                const lon = centerLon + (Math.random() - 0.5) * 0.015;
+                const intensity = Math.random() * 0.4 + 0.6; // High intensity (0.6-1.0)
+                heatPoints.push([lat, lon, intensity]);
+            }
+
+            // Eastern hotspot (near Yamuna/Ring Road) - concentrated red zone
+            for (let i = 0; i < 120; i++) {
+                const lat = centerLat + 0.025 + (Math.random() - 0.5) * 0.012;
+                const lon = centerLon + 0.02 + (Math.random() - 0.5) * 0.012;
+                const intensity = Math.random() * 0.35 + 0.65; // High intensity (0.65-1.0)
+                heatPoints.push([lat, lon, intensity]);
+            }
+
+            // Central Delhi hotspot - medium concentrated area
+            for (let i = 0; i < 100; i++) {
+                const lat = centerLat - 0.005 + (Math.random() - 0.5) * 0.01;
+                const lon = centerLon - 0.005 + (Math.random() - 0.5) * 0.01;
+                const intensity = Math.random() * 0.3 + 0.5; // Medium-high intensity (0.5-0.8)
+                heatPoints.push([lat, lon, intensity]);
+            }
+
+            // Karol Bagh area hotspot - smaller concentrated zone
+            for (let i = 0; i < 80; i++) {
+                const lat = centerLat - 0.02 + (Math.random() - 0.5) * 0.008;
+                const lon = centerLon - 0.015 + (Math.random() - 0.5) * 0.008;
+                const intensity = Math.random() * 0.25 + 0.6; // High intensity (0.6-0.85)
+                heatPoints.push([lat, lon, intensity]);
+            }
+
+            // Laxmi Nagar area hotspot - eastern zone
+            for (let i = 0; i < 90; i++) {
+                const lat = centerLat + 0.03 + (Math.random() - 0.5) * 0.01;
+                const lon = centerLon + 0.035 + (Math.random() - 0.5) * 0.01;
+                const intensity = Math.random() * 0.3 + 0.55; // Medium-high intensity (0.55-0.85)
+                heatPoints.push([lat, lon, intensity]);
+            }
+
+            // Medium-high risk areas - orange zones
+            for (let i = 0; i < 60; i++) {
+                const lat = centerLat + (Math.random() - 0.5) * 0.03;
+                const lon = centerLon + (Math.random() - 0.5) * 0.03;
+                const intensity = Math.random() * 0.2 + 0.5; // High-medium intensity
+                heatPoints.push([lat, lon, intensity]);
+            }
+
+            // Medium-risk areas - yellow zones
+            for (let i = 0; i < 80; i++) {
+                const lat = centerLat + (Math.random() - 0.5) * 0.05;
+                const lon = centerLon + (Math.random() - 0.5) * 0.05;
+                const intensity = Math.random() * 0.2 + 0.3; // Medium intensity
+                heatPoints.push([lat, lon, intensity]);
+            }
+
+            // Low-risk areas - green zones
+            for (let i = 0; i < 100; i++) {
+                const lat = centerLat + (Math.random() - 0.5) * 0.08;
+                const lon = centerLon + (Math.random() - 0.5) * 0.08;
+                const intensity = Math.random() * 0.2 + 0.1; // Low intensity
+                heatPoints.push([lat, lon, intensity]);
+            }
+
+            // Generate crowd data with similar patterns
+            for (let i = 0; i < 150; i++) {
+                const lat = centerLat + (Math.random() - 0.5) * 0.1;
+                const lon = centerLon + (Math.random() - 0.5) * 0.1;
+                const crowdDensity = Math.random() * 100;
+                crowdData.push({ lat, lon, density: crowdDensity });
+            }
+        }
+
+        generateMockData();
+
+        // Don't auto-show heatmap - let user control it
+
+        /* ========== RISK CALCULATION ========== */
+        function calculateRisk(lat, lon) {
+            // Calculate heat risk
+            let heatRisk = 0;
+            const heatRadius = 0.01; // ~1km
+
+            for (const point of heatPoints) {
+                const distance = Math.sqrt(
+                    Math.pow(point[0] - lat, 2) + Math.pow(point[1] - lon, 2)
+                );
+                if (distance < heatRadius) {
+                    heatRisk += point[2];
+                }
+            }
+            heatRisk = Math.min(1, heatRisk / 5); // Normalize
+
+            // Calculate crowd risk
+            let crowdRisk = 0;
+            for (const point of crowdData) {
+                const distance = Math.sqrt(
+                    Math.pow(point.lat - lat, 2) + Math.pow(point.lon - lon, 2)
+                );
+                if (distance < heatRadius) {
+                    crowdRisk += point.density;
+                }
+            }
+            crowdRisk = Math.min(1, crowdRisk / 500); // Normalize
+
+            // Weather risk (simplified)
+            const weatherRisk = 0.1; // Default low risk
+
+            // Incident risk
+            let incidentRisk = 0;
+            for (const incident of incidentData) {
+                const distance = Math.sqrt(
+                    Math.pow(incident.lat - lat, 2) + Math.pow(incident.lon - lon, 2)
+                );
+                if (distance < 0.005) { // ~500m
+                    incidentRisk += 0.3;
+                }
+            }
+            incidentRisk = Math.min(1, incidentRisk);
+
+            // Combined risk
+            const combinedRisk = (heatRisk * 0.3 + crowdRisk * 0.3 + weatherRisk * 0.2 + incidentRisk * 0.2);
+            return Math.min(100, Math.round(combinedRisk * 100));
+        }
+
+        function getRiskColor(risk) {
+            if (risk < 30) return '#4caf50';
+            if (risk < 50) return '#ffeb3b';
+            if (risk < 70) return '#ff9800';
+            return '#f44336';
+        }
+
+        function getRiskLabel(risk) {
+            if (risk < 30) return 'Safe Zone';
+            if (risk < 50) return 'Moderate Risk';
+            if (risk < 70) return 'High Risk';
+            return 'Danger Zone';
+        }
+
+        /* ========== API FUNCTIONS ========== */
+        async function geocodeAddress(address) {
+            try {
+                const response = await fetch(
+                    `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(address)}&limit=1`
+                );
+                const data = await response.json();
+                if (data && data.length > 0) {
+                    return {
+                        lat: parseFloat(data[0].lat),
+                        lon: parseFloat(data[0].lon),
+                        name: data[0].display_name
+                    };
+                }
+            } catch (error) {
+                console.error('Geocoding error:', error);
+            }
+            return null;
+        }
+
+        async function fetchRoute(start, end, apiKey) {
+            if (!apiKey) {
+                showToast('Please enter your OpenRouteService API key');
+                return null;
+            }
+
+            try {
+                const response = await fetch('https://api.openrouteservice.org/v2/directions/foot-walking/geojson', {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': apiKey,
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        coordinates: [[start.lon, start.lat], [end.lon, end.lat]],
+                        instructions: false
+                    })
+                });
+
+                if (!response.ok) {
+                    throw new Error(`API Error: ${response.status}`);
+                }
+
+                return await response.json();
+            } catch (error) {
+                console.error('Routing error:', error);
+                showToast('Error fetching route. Check your API key.');
+                return null;
+            }
+        }
+
+        async function fetchWeatherRisk(lat, lon, apiKey) {
+            if (!apiKey) return 0.1;
+
+            try {
+                const response = await fetch(
+                    `https://api.openweathermap.org/data/2.5/weather?lat=${lat}&lon=${lon}&appid=${apiKey}&units=metric`
+                );
+                const data = await response.json();
+
+                if (data.weather && data.weather[0]) {
+                    const weather = data.weather[0].main.toLowerCase();
+                    if (weather.includes('rain') || weather.includes('storm')) return 0.6;
+                    if (weather.includes('snow')) return 0.5;
+                    if (weather.includes('clear')) return 0.1;
+                    return 0.2;
+                }
+            } catch (error) {
+                console.error('Weather API error:', error);
+            }
+            return 0.1;
+        }
+
+        /* ========== ROUTE PROCESSING ========== */
+        function processRoute(routeData, start, end) {
+            if (!routeData || !routeData.features || !routeData.features[0]) {
+                return null;
+            }
+
+            const coordinates = routeData.features[0].geometry.coordinates;
+            const distance = routeData.features[0].properties.summary.distance;
+            const duration = routeData.features[0].properties.summary.duration;
+
+            // Sample points along the route
+            const samplePoints = [];
+            const step = Math.max(1, Math.floor(coordinates.length / 20));
+
+            for (let i = 0; i < coordinates.length; i += step) {
+                const [lon, lat] = coordinates[i];
+                const risk = calculateRisk(lat, lon);
+                samplePoints.push({ lat, lon, risk });
+            }
+
+            // Calculate average risk
+            const avgRisk = samplePoints.reduce((sum, point) => sum + point.risk, 0) / samplePoints.length;
+
+            return {
+                coordinates: coordinates.map(coord => [coord[1], coord[0]]), // Convert to [lat, lon]
+                distance,
+                duration,
+                avgRisk,
+                samplePoints
+            };
+        }
+
+        /* ========== UI EVENT HANDLERS ========== */
+
+        // Dark mode toggle
+        $('#toggleNight').addEventListener('click', () => {
+            isDarkMode = !isDarkMode;
+            document.body.classList.toggle('dark-mode', isDarkMode);
+
+            if (isDarkMode) {
+                map.removeLayer(osmLayer);
+                darkLayer.addTo(map);
+                $('#toggleNight').innerText = '☀️ Day';
+                showToast('Dark mode enabled');
+            } else {
+                map.removeLayer(darkLayer);
+                osmLayer.addTo(map);
+                $('#toggleNight').innerText = '🌙 Night';
+                showToast('Light mode enabled');
+            }
+        });
+
+        // Heatmap toggle
+        $('#toggleHeat').addEventListener('click', () => {
+    if (heatLayer) {
+        map.removeLayer(heatLayer);
+        heatLayer = null;
+        $('#toggleHeat').innerText = '🔥 Heatmap';
+        showToast('Heatmap hidden');
+    } else {
+        heatLayer = L.heatLayer(heatPoints, {      // assign to heatLayer
+            radius: 25,
+            blur: 15,
+            maxZoom: 17,
+            gradient: {
+                0.0: '#81C784',
+                0.1: '#A5D6A7',
+                0.2: '#C8E6C9',
+                0.3: '#DCEDC8',
+                0.4: '#F0F4C3',
+                0.5: '#FFF9C4',
+                0.6: '#FFECB3',
+                0.7: '#FFE0B2',
+                0.8: '#FFCC80',
+                0.9: '#FFAB91',
+                1.0: '#FF8A80'
+            }
+        }).addTo(map);
+        $('#toggleHeat').innerText = '❌ Hide Heat';
+        showToast('Heatmap visible');
+    }
+});
+
+        // Clear all
+        $('#clearAllBtn').addEventListener('click', () => {
+            clearAll();
+            showToast('All data cleared');
+        });
+
+        // Clear risk circles
+        $('#clearRisksFab').addEventListener('click', () => {
+            riskCircles.forEach(circle => map.removeLayer(circle));
+            riskCircles = [];
+            showToast('Risk zones cleared');
+        });
+
+        // Incident reporting
+        $('#reportFab').addEventListener('click', () => {
+            const panel = $('#incidentSelect');
+            panel.style.display = panel.style.display === 'none' ? 'block' : 'none';
+        });
+
+        // Incident type selection
+        document.querySelectorAll('#incidentSelect button').forEach(btn => {
+            btn.addEventListener('click', () => {
+                selectedIncidentType = btn.dataset.type;
+                $('#incidentSelect').style.display = 'none';
+                reportMode = true;
+                map.getContainer().style.cursor = 'crosshair';
+                showToast(`Click on map to report: ${selectedIncidentType}`);
+            });
+        });
+
+        // Map click handler
+        map.on('click', async (e) => {
+            const { lat, lng } = e.latlng;
+
+            if (reportMode && selectedIncidentType) {
+                // Report incident
+                const incident = {
+                    lat,
+                    lon: lng,
+                    type: selectedIncidentType,
+                    timestamp: new Date()
+                };
+
+                incidentData.push(incident);
+
+                const icon = getIncidentIcon(selectedIncidentType);
+                const marker = L.marker([lat, lng], {
+                    icon: L.divIcon({
+                        html: icon,
+                        className: 'incident-marker',
+                        iconSize: [30, 30]
+                    })
+                }).addTo(map);
+
+                marker.bindPopup(`
+          <div class="risk-popup">
+            <button class="close-btn" onclick="this.parentElement.parentElement.closePopup()">×</button>
+            <h4 style="color: #f44336; margin-bottom: 8px;">${icon} ${selectedIncidentType}</h4>
+            <div class="risk-stats">
+              <div class="risk-stat">
+                <span class="label">Status:</span>
+                <span class="value" style="color: #f44336;">Reported</span>
+              </div>
+              <div class="risk-stat">
+                <span class="label">Time:</span>
+                <span class="value">Just now</span>
+              </div>
+            </div>
+          </div>
+        `).openPopup();
+
+                incidentMarkers.push(marker);
+
+                reportMode = false;
+                selectedIncidentType = null;
+                map.getContainer().style.cursor = '';
+                showToast(`${selectedIncidentType} reported successfully`);
+            } else {
+                // Add risk circle
+                const risk = calculateRisk(lat, lng);
+                const color = getRiskColor(risk);
+                const label = getRiskLabel(risk);
+
+                const circle = L.circle([lat, lng], {
+                    radius: 200,
+                    color: color,
+                    fillColor: color,
+                    fillOpacity: 0.3,
+                    weight: 2
+                }).addTo(map);
+
+                circle.bindPopup(`
+          <div class="risk-popup">
+            <button class="close-btn" onclick="this.parentElement.parentElement.closePopup()">×</button>
+            <h4 style="color: ${color}; margin-bottom: 12px;">${label}</h4>
+            <div class="risk-stats">
+              <div class="risk-stat">
+                <span class="label">Risk:</span>
+                <span class="value" style="color: ${color};">${risk}%</span>
+              </div>
+              <div class="risk-stat">
+                <span class="label">Crowd:</span>
+                <span class="value">${Math.round(risk * 0.3)}%</span>
+              </div>
+              <div class="risk-stat">
+                <span class="label">Weather:</span>
+                <span class="value">${Math.round(risk * 0.2)}%</span>
+              </div>
+            </div>
+          </div>
+        `).openPopup();
+
+                circle.on('click', () => {
+                    map.removeLayer(circle);
+                    riskCircles = riskCircles.filter(c => c !== circle);
+                });
+
+                riskCircles.push(circle);
+            }
+        });
+
+        // Main route calculation
+        $('#goBtn').addEventListener('click', async () => {
+            const fromAddress = $('#fromInput').value.trim();
+            const toAddress = $('#toInput').value.trim();
+            const orsKey = $('#orsKey').value.trim();
+            const owmKey = $('#owmKey').value.trim();
+
+            if (!fromAddress || !toAddress) {
+                showToast('Please enter both start and destination');
+                return;
+            }
+
+            if (!orsKey) {
+                showToast('Please enter your OpenRouteService API key');
+                return;
+            }
+
+            try {
+                showToast('Finding locations...');
+
+                const start = await geocodeAddress(fromAddress);
+                const end = await geocodeAddress(toAddress);
+
+                if (!start || !end) {
+                    showToast('Could not find one or both locations');
+                    return;
+                }
+
+                showToast('Calculating route...');
+                const routeData = await fetchRoute(start, end, orsKey);
+
+                if (!routeData) {
+                    return;
+                }
+
+                const route = processRoute(routeData, start, end);
+                if (!route) {
+                    showToast('Could not process route');
+                    return;
+                }
+
+                // Clear existing routes
+                routeLayers.forEach(layer => map.removeLayer(layer));
+                routeLayers = [];
+
+                // Draw route
+                const routePolyline = L.polyline(route.coordinates, {
+                    color: getRiskColor(route.avgRisk),
+                    weight: 6,
+                    opacity: 0.8
+                }).addTo(map);
+
+                routePolyline.bindPopup(`
+          <div class="risk-popup">
+            <button class="close-btn" onclick="this.parentElement.parentElement.closePopup()">×</button>
+            <h4 style="color: ${getRiskColor(route.avgRisk)}; margin-bottom: 12px;">Route Information</h4>
+            <div class="risk-stats">
+              <div class="risk-stat">
+                <span class="label">Distance:</span>
+                <span class="value">${Math.round(route.distance)}m</span>
+              </div>
+              <div class="risk-stat">
+                <span class="label">Duration:</span>
+                <span class="value">${Math.round(route.duration / 60)}min</span>
+              </div>
+              <div class="risk-stat">
+                <span class="label">Risk Level:</span>
+                <span class="value" style="color: ${getRiskColor(route.avgRisk)};">${Math.round(route.avgRisk)}%</span>
+              </div>
+              <div class="risk-stat">
+                <span class="label">Status:</span>
+                <span class="value" style="color: ${getRiskColor(route.avgRisk)};">${getRiskLabel(route.avgRisk)}</span>
+              </div>
+            </div>
+          </div>
+        `);
+
+                routeLayers.push(routePolyline);
+
+                // Show mode recommendation
+                showModeRecommendation(route);
+
+                // Fit map to route
+                const bounds = L.latLngBounds(route.coordinates);
+                map.fitBounds(bounds, { padding: [20, 20] });
+
+                showToast('Route calculated successfully');
+
+            } catch (error) {
+                console.error('Route calculation error:', error);
+                showToast('Error calculating route');
+            }
+        });
+
+        // Mode recommendation
+        function showModeRecommendation(route) {
+            const distance = route.distance;
+            const risk = route.avgRisk;
+            const duration = route.duration / 60; // minutes
+
+            let recommendedMode = 'Metro';
+            let reason = '';
+
+            if (risk < 30 && distance < 1000) {
+                recommendedMode = 'Walk';
+                reason = 'Short distance with low risk - perfect for walking';
+            } else if (risk < 40 && distance < 3000) {
+                recommendedMode = 'Cycle';
+                reason = 'Moderate distance with acceptable risk - cycling recommended';
+            } else if (risk > 60) {
+                recommendedMode = 'Cab';
+                reason = 'High risk area - cab is the safest option';
+            } else {
+                recommendedMode = 'Metro';
+                reason = 'Metro provides the best balance of speed and safety';
+            }
+
+            // Format distance and time for display
+            const distanceKm = (distance / 1000).toFixed(1);
+
+            // Use realistic time calculation for initial recommendation
+            const walkSpeed = 4; // km/h
+            const durationHours = (distance / 1000) / walkSpeed;
+            const calculatedMinutes = Math.round(durationHours * 60);
+            const minTime = 2; // minimum 2 minutes for walking
+            const finalDuration = Math.max(calculatedMinutes, minTime);
+            const durationHoursFinal = finalDuration / 60;
+
+            let timeDisplay;
+            if (durationHoursFinal >= 1) {
+                const hours = Math.floor(durationHoursFinal);
+                const minutes = Math.round((durationHoursFinal - hours) * 60);
+                timeDisplay = minutes > 0 ? `${hours}h ${minutes}m` : `${hours}h`;
+            } else {
+                timeDisplay = `${finalDuration}m`;
+            }
+
+            // Calculate risk breakdown for display
+            const crowdRisk = Math.round(risk * 0.4); // Crowd contributes 40% to total risk
+            const weatherRisk = Math.round(risk * 0.2); // Weather contributes 20% to total risk
+            const heatRisk = Math.round(risk * 0.4); // Heat contributes 40% to total risk
+
+            // Update UI
+            $('#modeTitle').innerText = `Recommended: ${recommendedMode}`;
+            $('#modeReason').innerText = `${reason} • Risk: ${Math.round(risk)}% • Crowd: ${crowdRisk}% • Heat: ${heatRisk}%`;
+            $('#modeCard').style.display = 'block';
+
+            // Highlight recommended button (without updating the card content)
+            document.querySelectorAll('.modeBtn').forEach(btn => {
+                btn.classList.remove('recommended');
+            });
+
+            const modeButtons = {
+                'Walk': $('#btnWalk'),
+                'Cycle': $('#btnCycle'),
+                'Metro': $('#btnMetro'),
+                'Cab': $('#btnCab')
+            };
+
+            if (modeButtons[recommendedMode]) {
+                modeButtons[recommendedMode].classList.add('recommended');
+            }
+        }
+
+        // Mode button handlers
+        $('#btnWalk').addEventListener('click', () => {
+            selectMode('Walk');
+            showToast('Walking mode selected');
+        });
+        $('#btnCycle').addEventListener('click', () => {
+            selectMode('Cycle');
+            showToast('Cycling mode selected');
+        });
+        $('#btnMetro').addEventListener('click', () => {
+            selectMode('Metro');
+            showToast('Metro mode selected');
+        });
+        $('#btnCab').addEventListener('click', () => {
+            selectMode('Cab');
+            showToast('Cab mode selected');
+        });
+
+        // Function to handle mode selection
+        function selectMode(mode) {
+            // Remove recommended class from all buttons
+            document.querySelectorAll('.modeBtn').forEach(btn => {
+                btn.classList.remove('recommended');
+            });
+
+            // Add recommended class to selected mode
+            const modeButtons = {
+                'Walk': $('#btnWalk'),
+                'Cycle': $('#btnCycle'),
+                'Metro': $('#btnMetro'),
+                'Cab': $('#btnCab')
+            };
+
+            if (modeButtons[mode]) {
+                modeButtons[mode].classList.add('recommended');
+            }
+
+            // Update the mode card title and recalculate metrics
+            updateModeCard(mode);
+        }
+
+        // Function to update mode card with selected mode
+        function updateModeCard(selectedMode) {
+            if (routeLayers.length === 0) return; // No route to update
+
+            // Get current route data
+            const currentRoute = routeLayers[0];
+            const bounds = currentRoute.getBounds();
+            const center = bounds.getCenter();
+
+            // Calculate new metrics based on selected mode
+            const distance = Math.round(currentRoute.getLatLngs().reduce((total, latlng, index, array) => {
+                if (index === 0) return 0;
+                const prev = array[index - 1];
+                return total + prev.distanceTo(latlng);
+            }, 0) * 1000); // Convert to meters
+
+            // Different modes have different characteristics
+            let modeData = {
+                'Walk': {
+                    speed: 4, // km/h - realistic walking speed
+                    riskMultiplier: 1.2,
+                    description: 'Walking provides exercise and flexibility'
+                },
+                'Cycle': {
+                    speed: 12, // km/h - realistic cycling speed in city
+                    riskMultiplier: 1.1,
+                    description: 'Cycling offers good speed with moderate risk'
+                },
+                'Metro': {
+                    speed: 25, // km/h - metro speed including stops
+                    riskMultiplier: 0.8,
+                    description: 'Metro provides the best balance of speed and safety'
+                },
+                'Cab': {
+                    speed: 20, // km/h - realistic city driving speed
+                    riskMultiplier: 0.9,
+                    description: 'Cab offers comfort and safety'
+                }
+            };
+
+            const mode = modeData[selectedMode];
+            const distanceKm = (distance / 1000).toFixed(1);
+            const baseRisk = calculateRisk(center.lat, center.lng);
+            const adjustedRisk = Math.round(baseRisk * mode.riskMultiplier);
+
+            // Calculate realistic time with minimum thresholds
+            let durationHours = (distance / 1000) / mode.speed;
+
+            // Add minimum time based on mode (for very short distances)
+            const minTimes = {
+                'Walk': 2, // minimum 2 minutes
+                'Cycle': 1, // minimum 1 minute
+                'Metro': 3, // minimum 3 minutes (station access + waiting)
+                'Cab': 2  // minimum 2 minutes (waiting + boarding)
+            };
+
+            const minTimeMinutes = minTimes[selectedMode] || 1;
+            const calculatedMinutes = Math.round(durationHours * 60);
+            const duration = Math.max(calculatedMinutes, minTimeMinutes);
+            const durationHoursFinal = duration / 60;
+
+            // Format time display
+            let timeDisplay;
+            if (durationHoursFinal >= 1) {
+                const hours = Math.floor(durationHoursFinal);
+                const minutes = Math.round((durationHoursFinal - hours) * 60);
+                timeDisplay = minutes > 0 ? `${hours}h ${minutes}m` : `${hours}h`;
+            } else {
+                timeDisplay = `${duration}m`;
+            }
+
+            // Calculate crowd and weather risk for display
+            const crowdRisk = Math.round(adjustedRisk * 0.4); // Crowd contributes 40% to total risk
+            const weatherRisk = Math.round(adjustedRisk * 0.2); // Weather contributes 20% to total risk
+            const heatRisk = Math.round(adjustedRisk * 0.4); // Heat contributes 40% to total risk
+
+            // Update the mode card
+            $('#modeTitle').innerText = `Selected: ${selectedMode}`;
+            $('#modeReason').innerText = `${mode.description} • Risk: ${adjustedRisk}% • Crowd: ${crowdRisk}% • Heat: ${heatRisk}%`;
+
+            // Update route color based on risk
+            const riskColor = getRiskColor(adjustedRisk);
+            currentRoute.setStyle({
+                color: riskColor,
+                weight: adjustedRisk > 70 ? 8 : 6
+            });
+        }
+
+        // Helper functions
+        function getIncidentIcon(type) {
+            const icons = {
+                'Accident': '🚨',
+                'Pothole': '🕳️',
+                'Lighting': '💡',
+                'Crowd': '👥',
+                'Construction': '🚧',
+                'Crime': '⚠️'
+            };
+            return icons[type] || '⚠️';
+        }
+
+        function clearAll() {
+            // Clear routes
+            routeLayers.forEach(layer => map.removeLayer(layer));
+            routeLayers = [];
+
+            // Clear risk circles
+            riskCircles.forEach(circle => map.removeLayer(circle));
+            riskCircles = [];
+
+            // Clear incidents
+            incidentMarkers.forEach(marker => map.removeLayer(marker));
+            incidentMarkers = [];
+            incidentData.length = 0;
+
+            // Clear heatmap
+            if (heatLayer) {
+                map.removeLayer(heatLayer);
+                heatLayer = null;
+                $('#toggleHeat').innerText = '🔥 Heatmap';
+            }
+
+            // Hide mode card
+            $('#modeCard').style.display = 'none';
+
+            // Reset inputs
+            $('#fromInput').value = '';
+            $('#toInput').value = '';
+        }
+
+        // Initialize with some sample hotspots
+        const hotspots = [
+            { lat: 28.6328, lon: 77.2183, type: 'Pothole', message: 'Multiple potholes reported here' },
+            { lat: 28.6450, lon: 77.2440, type: 'Lighting', message: 'Poor lighting at night' },
+            { lat: 28.6260, lon: 77.2050, type: 'Crowd', message: 'Frequent crowd surges' }
+        ];
+
+        hotspots.forEach(hotspot => {
+            const marker = L.marker([hotspot.lat, hotspot.lon], {
+                icon: L.divIcon({
+                    html: getIncidentIcon(hotspot.type),
+                    className: 'hotspot-marker',
+                    iconSize: [25, 25]
+                })
+            }).addTo(map);
+
+            marker.bindPopup(`
+        <div class="risk-popup">
+          <button class="close-btn" onclick="this.parentElement.parentElement.closePopup()">×</button>
+          <h4 style="color: #ff9800; margin-bottom: 8px;">${getIncidentIcon(hotspot.type)} Hotspot</h4>
+          <div class="risk-stats">
+            <div class="risk-stat">
+              <span class="label">Type:</span>
+              <span class="value">${hotspot.type}</span>
+            </div>
+            <div class="risk-stat">
+              <span class="label">Info:</span>
+              <span class="value">${hotspot.message}</span>
+            </div>
+          </div>
+        </div>
+      `);
+        });
+
+        showToast('SafeRoute loaded successfully! Enter your API keys to get started.');
+    </script>
+</body>
+
+</html>
